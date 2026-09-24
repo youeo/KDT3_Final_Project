@@ -1,0 +1,32 @@
+{
+    "InstanceProfiles": [
+        {
+            "Path": "/",
+            "InstanceProfileName": "tf-core-test-1-dev-bastion-profile",
+            "InstanceProfileId": "AIPA5GBPAH4NS6VAYDVDS",
+            "Arn": "arn:aws:iam::906336681755:instance-profile/tf-core-test-1-dev-bastion-profile",
+            "CreateDate": "2026-06-26T01:42:52+00:00",
+            "Roles": [
+                {
+                    "Path": "/",
+                    "RoleName": "tf-core-test-1-dev-bastion-ssm-role",
+                    "RoleId": "AROA5GBPAH4N6YJE73N5K",
+                    "Arn": "arn:aws:iam::906336681755:role/tf-core-test-1-dev-bastion-ssm-role",
+                    "CreateDate": "2026-06-26T01:42:51+00:00",
+                    "AssumeRolePolicyDocument": {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Effect": "Allow",
+                                "Principal": {
+                                    "Service": "ec2.amazonaws.com"
+                                },
+                                "Action": "sts:AssumeRole"
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    ]
+}

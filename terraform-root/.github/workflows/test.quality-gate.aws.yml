@@ -1,0 +1,58 @@
+name: "Project Quality Gate - AWS"
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+  push:
+    branches: [main]
+    paths: ["terraform-AWS/**"]
+
+permissions:
+  contents: read
+
+env:
+  TF_VERSION: "1.14.7"
+  AWS_REGION: "ap-northeast-2"
+  WORKING_DIR: "terraform-AWS/envs/dev"
+
+jobs:
+  quality-gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Format Check
+        run: terraform fmt -check -recursive
+
+      # -backend=false 옵션을 주면 AWS 로그인 없이 로컬에서 초기화가 가능
+      - name: Terraform Init (Validation only)
+        run: terraform init -backend=false -input=false
+
+      - name: Validate
+        run: terraform validate
+
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      # 옵션으로 에러 나도 멈추지 않게 설정
+      - name: Run TFLint
+        run: tflint --init && tflint --recursive --minimum-failure-severity=error
+
+      - name: Security Scan
+        uses: aquasecurity/tfsec-action@v1.0.3
+        # tfsec 자체가 뻗어도 전체 배포를 멈추지 않게 설정
+        # tfsec에서 check 블록을 해석 못하는 오류 발생
+        continue-on-error: true
+        with:
+          working_directory: ${{ env.WORKING_DIR }}
+          soft_fail: true

@@ -1,0 +1,72 @@
+name: "Project Deploy - AWS"
+
+on:
+  # 부모 호출이 트리거
+  workflow_call:
+    secrets:
+      AWS_IAMROLE_ARN:
+        required: true
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+  workflow_dispatch:
+
+  # push:
+  #   branches: [main]
+  #   paths: ["terraform-AWS/**"]
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VERSION: "1.14.7"
+  AWS_REGION: "ap-northeast-2"
+  # TF_LOG: DEBUG
+
+jobs:
+  deploy-aws:
+    runs-on: ubuntu-latest
+    environment: AWS
+    env:
+      WORKING_DIR: "terraform-AWS/envs/dev"
+    concurrency:
+      group: test-deploy-aws
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_IAMROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      
+
+      # - name: Create dev tfvars file from Secrets
+      #   run: |
+      #     cat << 'EOF' > env.dev.aws.tfvars
+      #     ${{ secrets.DEV_AWS_TFVARS }}
+      #     EOF
+
+      - run: terraform init -input=false
+
+      - name: Terraform Apply
+        run: |
+          terraform apply -target=module.network -target=module.workload -target=module.platform -input=false -auto-approve
+          terraform apply -auto-approve -input=false

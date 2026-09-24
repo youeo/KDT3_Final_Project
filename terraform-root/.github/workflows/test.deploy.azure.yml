@@ -1,0 +1,81 @@
+name: "Project Deploy - Azure"
+
+on:
+  # 부모 호출이 트리거
+  workflow_call:
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      DEV_AZURE_TFVARS:
+        required: true
+  # 깃허브 웹 화면에 [수동 배포 시작] 버튼을 만들어줌
+  workflow_dispatch:
+
+  # push:
+  #   branches: [main]
+  #   paths: ["terraform-Azure/**"]
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VERSION: "1.14.7"
+  AWS_REGION: "ap-northeast-2"
+  # TF_LOG: DEBUG
+
+jobs:
+  deploy-azure:
+    runs-on: ubuntu-latest
+    environment: Azure
+    env:
+      WORKING_DIR: "terraform-Azure/envs/dev"
+    concurrency:
+      group: test-deploy-azure
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        
+      - name: Add GitHub Actions IP to Key Vault Firewall
+        run: |
+          # 현재 러너의 IP를 가져와서 Azure Key Vault 방화벽에 추가
+          # 배포시에만 열어주고 끝나면 삭제 되도록 하단에도 추가
+          MY_IP=$(curl -s https://api.ipify.org)
+          az keyvault network-rule add --name "db-certifi" --resource-group "ej-terraform-state" --ip-address $MY_IP
+
+      - name: Create prod tfvars file from Secrets
+        run: |
+          cat << 'EOF' > env.dev.azure.tfvars
+          ${{ secrets.DEV_AZURE_TFVARS }}
+          EOF
+
+      - run: terraform init -input=false
+      - run: terraform apply -input=false -auto-approve -var-file="env.dev.azure.tfvars"
+
+      - name: Remove IP from Firewall
+        if: always() # 배포가 성공하든 실패하든 무조건 실행
+        run: |
+          MY_IP=$(curl -s https://api.ipify.org)
+          # 현재 방화벽 규칙 목록에서 내 IP가 포함된 항목을 찾아 삭제
+          # 혹시 이미 삭제되었을 경우를 대비해 || true를 추가하여 에러 방지
+          az keyvault network-rule remove \
+            --name "db-certifi" \
+            --resource-group "ej-terraform-state" \
+            --ip-address "$MY_IP" || echo "IP already removed or not found"

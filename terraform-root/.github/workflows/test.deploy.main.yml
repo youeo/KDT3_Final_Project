@@ -1,0 +1,43 @@
+name: "Project Main Pipeline"
+
+# 부모의 배포 버튼 클릭 -> 동시 수동 배포 (공동 배포가 필요한 경우 사용)
+# 자식의 배포 버튼 클릭 -> 개별 수동 배포 (콘솔이나 변수 변경 시 사용)
+# 자식의 타겟 디렉토리 변경 -> 개별 자동 배포 (코드 변동 시 사용)
+
+on:
+  # push:
+  #   branches: [main]
+  #   paths:
+  #     - "terraform-Azure/**"
+  #     - "terraform-AWS/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  quality-gate-azure:
+    uses: ./.github/workflows/test.quality-gate.azure.yml
+  
+  call-azure:
+    needs: quality-gate-azure
+    uses: ./.github/workflows/test.deploy.azure.yml
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      DEV_AZURE_TFVARS: ${{ secrets.DEV_AZURE_TFVARS }}
+
+  quality-gate-aws:
+    needs: call-azure
+    uses: ./.github/workflows/test.quality-gate.aws.yml
+
+  call-aws:
+    needs: quality-gate-aws
+    uses: ./.github/workflows/test.deploy.aws.yml
+    secrets:
+      AWS_IAMROLE_ARN: ${{ secrets.AWS_IAMROLE_ARN }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
