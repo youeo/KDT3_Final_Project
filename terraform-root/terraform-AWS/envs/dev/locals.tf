@@ -20,12 +20,12 @@ locals {
 
   # 현재 azure 생성 시 ip 지정 생성됨
   azure_private_dns_resolver = {
-    inbound_ips = try(data.terraform_remote_state.azure.outputs.azure_inbound_ips, ["10.0.254.4"])
+    inbound_ips = try(data.terraform_remote_state.azure.outputs.azure_inbound_ips, ["IP address"])
   }
 
   azure_vpn = {
     vnet_cidr             = try(data.terraform_remote_state.azure.outputs.azure_vnet_cidr, "10.0.0.0/16")
-    vpn_gateway_public_ip = try(data.terraform_remote_state.azure.outputs.azure_vpn_gw_pip, "20.249.153.151")
+    vpn_gateway_public_ip = try(data.terraform_remote_state.azure.outputs.azure_vpn_gw_pip, "IP address")
   }
 
   # assumed-role ARN을 정규 IAM Role ARN으로 변환하는 로컬 변수
@@ -52,7 +52,7 @@ locals {
   aws_health_to_slack_role_name = "aws-health-to-slack-seoul-HealthToSlackFunctionRole-U5SBpUx5eXwf"
   aws_health_to_slack_log_group = "/aws/lambda/aws-health-to-slack-seoul-health-to-slack"
 
-  target_username   = try(data.terraform_remote_state.azure.outputs.target_username, "petclinicadmin")
-  target_password   = try(data.terraform_remote_state.azure.outputs.target_password, "data1234!")
-  target_db_address = try(data.terraform_remote_state.azure.outputs.target_db_address, "10.0.201.4")
+  target_username   = try(data.terraform_remote_state.azure.outputs.target_username, "admin")
+  target_password   = try(data.terraform_remote_state.azure.outputs.target_password, "database_password")
+  target_db_address = try(data.terraform_remote_state.azure.outputs.target_db_address, "database_address")
 }
